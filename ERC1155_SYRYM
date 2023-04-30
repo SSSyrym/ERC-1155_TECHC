@@ -1,0 +1,79 @@
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.19;
+
+import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract SyrymNFT is ERC1155, Ownable {
+    uint256 public constant NFT_ID = 0;
+    uint256 public constant NFT_PRICE = 0.1 ether;
+
+    mapping(address => bool) public whitelist;
+    mapping(address => uint256) public balance;
+
+    constructor() ERC1155("https://nftstorage.link/ipfs/bafkreicfjwj5hm6zwakdhedqdc3zm37zj2f2rhfle6p2btuudjtapgjwze") {}
+
+    function addToWhitelist(address _address) public onlyOwner {
+        whitelist[_address] = true;
+    }
+
+    function removeFromWhitelist(address _address) public onlyOwner {
+        whitelist[_address] = false;
+    }
+
+    function buyNft() public payable {
+        require(whitelist[msg.sender], "Address not whitelisted");
+        require(msg.value == NFT_PRICE, "Incorrect amount of ether sent");
+
+        _mint(msg.sender, NFT_ID, 1, "");
+        balance[msg.sender] += 1;
+    }
+
+    function mint(address account, uint256 amount) public onlyOwner {
+        _mint(account, NFT_ID, amount, "");
+    }
+
+    function burn(address account, uint256 amount) public onlyOwner {
+        _burn(account, NFT_ID, amount);
+    }
+
+    function withdraw() public onlyOwner {
+        payable(owner()).transfer(address(this).balance);
+    }
+
+    function getBalance(address account) public view returns (uint256) {
+        return balance[account];
+    }
+
+    function onERC1155Received(
+        address,
+        address from,
+        uint256 id,
+        uint256 value,
+        bytes calldata data
+    ) public returns (bytes4) {
+        require(id == NFT_ID, "Invalid NFT ID");
+
+        balance[from] += value;
+
+        return this.onERC1155Received.selector;
+    }
+
+    function onERC1155BatchReceived(
+        address,
+        address from,
+        uint256[] calldata ids,
+        uint256[] calldata values,
+        bytes calldata data
+
+    ) public returns (bytes4) {
+        for (uint256 i = 0; i < ids.length; i++) {
+            require(ids[i] == NFT_ID, "Invalid NFT ID");
+
+            balance[from] += values[i];
+        }
+
+        return this.onERC1155BatchReceived.selector;
+    }
+}
